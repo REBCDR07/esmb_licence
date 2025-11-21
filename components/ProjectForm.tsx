@@ -27,32 +27,50 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ data, studentMajor, on
     onUpdate({ ...data, specificObjectives: newObjectives });
   };
 
+  const checkApiKey = () => {
+    if (!process.env.API_KEY) {
+        alert("Erreur de configuration : La clé API n'est pas détectée. Veuillez vérifier la configuration du déploiement (Environment Variables).");
+        return false;
+    }
+    return true;
+  };
+
   // Génération complète à partir du sujet seulement
   const handleAISuggest = async () => {
+    if (!checkApiKey()) return;
+
     if (!data.topic || data.topic.length < 5) {
       setErrors({ ...errors, topic: "Veuillez entrer un sujet précis avant de demander l'aide de l'IA." });
       return;
     }
     
     setIsGenerating(true);
-    const suggestion = await suggestObjectives(data.topic, studentMajor);
-    setIsGenerating(false);
-
-    if (suggestion) {
-      onUpdate({
-        ...data,
-        generalObjective: suggestion.generalObjective,
-        specificObjectives: [
-            suggestion.specificObjectives[0] || "",
-            suggestion.specificObjectives[1] || "",
-            suggestion.specificObjectives[2] || ""
-        ],
-      });
+    try {
+        const suggestion = await suggestObjectives(data.topic, studentMajor);
+        if (suggestion) {
+          onUpdate({
+            ...data,
+            generalObjective: suggestion.generalObjective,
+            specificObjectives: [
+                suggestion.specificObjectives[0] || "",
+                suggestion.specificObjectives[1] || "",
+                suggestion.specificObjectives[2] || ""
+            ],
+          });
+        } else {
+            alert("L'IA n'a pas pu générer de réponse. Veuillez réessayer.");
+        }
+    } catch (e) {
+        alert("Une erreur est survenue lors de la communication avec l'IA.");
+    } finally {
+        setIsGenerating(false);
     }
   };
 
   // Amélioration du texte existant
   const handleAIImprove = async () => {
+    if (!checkApiKey()) return;
+
     // Vérifier qu'il y a un minimum de contenu à améliorer
     if (!data.topic || !data.generalObjective) {
         alert("Veuillez remplir au moins le sujet et l'objectif général pour utiliser l'amélioration.");
@@ -60,11 +78,17 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ data, studentMajor, on
     }
 
     setIsImproving(true);
-    const improvedData = await improveProjectDetails(data, studentMajor);
-    setIsImproving(false);
-
-    if (improvedData) {
-        onUpdate(improvedData);
+    try {
+        const improvedData = await improveProjectDetails(data, studentMajor);
+        if (improvedData) {
+            onUpdate(improvedData);
+        } else {
+            alert("L'IA n'a pas pu améliorer le texte. Veuillez réessayer.");
+        }
+    } catch (e) {
+         alert("Une erreur est survenue lors de la communication avec l'IA.");
+    } finally {
+        setIsImproving(false);
     }
   };
 
@@ -107,33 +131,31 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ data, studentMajor, on
             <p className="text-slate-500">Détaillez le contenu de votre mémoire.</p>
         </div>
         
-        {process.env.API_KEY && (
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                {/* Bouton Générer (si vide ou peu rempli) */}
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            {/* Bouton Générer (si vide ou peu rempli) */}
+            <button
+                type="button"
+                onClick={handleAISuggest}
+                disabled={isGenerating || isImproving}
+                className="text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            >
+                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                Générer
+            </button>
+
+            {/* Bouton Améliorer (si contenu présent) */}
+            {hasContent && (
                 <button
                     type="button"
-                    onClick={handleAISuggest}
+                    onClick={handleAIImprove}
                     disabled={isGenerating || isImproving}
-                    className="text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                    className="text-sm font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
                 >
-                    {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    Générer
+                    {isImproving ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                    Améliorer l'écrit
                 </button>
-
-                {/* Bouton Améliorer (si contenu présent) */}
-                {hasContent && (
-                    <button
-                        type="button"
-                        onClick={handleAIImprove}
-                        disabled={isGenerating || isImproving}
-                        className="text-sm font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
-                    >
-                        {isImproving ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-                        Améliorer l'écrit
-                    </button>
-                )}
-            </div>
-        )}
+            )}
+        </div>
       </div>
 
       <div className="space-y-8">

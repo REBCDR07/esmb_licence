@@ -1,14 +1,20 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AISuggestion, ProjectInfo } from "../types";
 
-const apiKey = process.env.API_KEY;
-
-// Initialize only if key exists to prevent runtime crash on init, check later
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+// Helper to get AI instance on demand
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("Gemini API Key is missing in process.env");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const suggestObjectives = async (topic: string, major: string): Promise<AISuggestion | null> => {
+  const ai = getAIClient();
   if (!ai) {
-    console.warn("API Key missing for Gemini");
+    console.warn("AI Client could not be initialized due to missing key.");
     return null;
   }
 
@@ -57,8 +63,9 @@ export const suggestObjectives = async (topic: string, major: string): Promise<A
 };
 
 export const improveProjectDetails = async (currentData: ProjectInfo, major: string): Promise<ProjectInfo | null> => {
+  const ai = getAIClient();
   if (!ai) {
-    console.warn("API Key missing for Gemini");
+    console.warn("AI Client could not be initialized due to missing key.");
     return null;
   }
 
