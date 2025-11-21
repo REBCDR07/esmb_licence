@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { ProjectInfo } from '../types';
-import { suggestObjectives, improveProjectDetails } from '../services/geminiService';
-import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 
 interface ProjectFormProps {
   data: ProjectInfo;
@@ -11,9 +9,7 @@ interface ProjectFormProps {
   onBack: () => void;
 }
 
-export const ProjectForm: React.FC<ProjectFormProps> = ({ data, studentMajor, onUpdate, onNext, onBack }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isImproving, setIsImproving] = useState(false);
+export const ProjectForm: React.FC<ProjectFormProps> = ({ data, onUpdate, onNext, onBack }) => {
   const [errors, setErrors] = useState<Partial<Record<keyof ProjectInfo | 'specific', string>>>({});
 
   const handleChange = (field: keyof ProjectInfo, value: string) => {
@@ -25,71 +21,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ data, studentMajor, on
     const newObjectives = [...data.specificObjectives] as [string, string, string];
     newObjectives[index] = value;
     onUpdate({ ...data, specificObjectives: newObjectives });
-  };
-
-  const checkApiKey = () => {
-    if (!process.env.API_KEY) {
-        alert("Erreur de configuration : La clé API n'est pas détectée. Veuillez vérifier la configuration du déploiement (Environment Variables).");
-        return false;
-    }
-    return true;
-  };
-
-  // Génération complète à partir du sujet seulement
-  const handleAISuggest = async () => {
-    if (!checkApiKey()) return;
-
-    if (!data.topic || data.topic.length < 5) {
-      setErrors({ ...errors, topic: "Veuillez entrer un sujet précis avant de demander l'aide de l'IA." });
-      return;
-    }
-    
-    setIsGenerating(true);
-    try {
-        const suggestion = await suggestObjectives(data.topic, studentMajor);
-        if (suggestion) {
-          onUpdate({
-            ...data,
-            generalObjective: suggestion.generalObjective,
-            specificObjectives: [
-                suggestion.specificObjectives[0] || "",
-                suggestion.specificObjectives[1] || "",
-                suggestion.specificObjectives[2] || ""
-            ],
-          });
-        } else {
-            alert("L'IA n'a pas pu générer de réponse. Veuillez réessayer.");
-        }
-    } catch (e) {
-        alert("Une erreur est survenue lors de la communication avec l'IA.");
-    } finally {
-        setIsGenerating(false);
-    }
-  };
-
-  // Amélioration du texte existant
-  const handleAIImprove = async () => {
-    if (!checkApiKey()) return;
-
-    // Vérifier qu'il y a un minimum de contenu à améliorer
-    if (!data.topic || !data.generalObjective) {
-        alert("Veuillez remplir au moins le sujet et l'objectif général pour utiliser l'amélioration.");
-        return;
-    }
-
-    setIsImproving(true);
-    try {
-        const improvedData = await improveProjectDetails(data, studentMajor);
-        if (improvedData) {
-            onUpdate(improvedData);
-        } else {
-            alert("L'IA n'a pas pu améliorer le texte. Veuillez réessayer.");
-        }
-    } catch (e) {
-         alert("Une erreur est survenue lors de la communication avec l'IA.");
-    } finally {
-        setIsImproving(false);
-    }
   };
 
   const validate = () => {
@@ -120,42 +51,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ data, studentMajor, on
 
   const labelClasses = "block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide";
 
-  // Check if fields have content to decide if we show the "Improve" button
-  const hasContent = data.topic.length > 5 || data.generalObjective.length > 5;
-
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 md:p-10 rounded-3xl shadow-xl border border-slate-100 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-100 pb-4">
-        <div>
-            <h2 className="text-3xl text-slate-800 mb-1 font-display">Votre Projet</h2>
-            <p className="text-slate-500">Détaillez le contenu de votre mémoire.</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            {/* Bouton Générer (si vide ou peu rempli) */}
-            <button
-                type="button"
-                onClick={handleAISuggest}
-                disabled={isGenerating || isImproving}
-                className="text-sm font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            >
-                {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                Générer
-            </button>
-
-            {/* Bouton Améliorer (si contenu présent) */}
-            {hasContent && (
-                <button
-                    type="button"
-                    onClick={handleAIImprove}
-                    disabled={isGenerating || isImproving}
-                    className="text-sm font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
-                >
-                    {isImproving ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-                    Améliorer l'écrit
-                </button>
-            )}
-        </div>
+      <div className="mb-8 border-b border-slate-100 pb-4">
+        <h2 className="text-3xl text-slate-800 mb-1 font-display">Votre Projet</h2>
+        <p className="text-slate-500">Détaillez le contenu de votre mémoire.</p>
       </div>
 
       <div className="space-y-8">
